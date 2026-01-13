@@ -1,0 +1,3672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多工作簿表格系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ========== 修复图标路径 - 使用相对路径 ========== -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#3498db">
+    <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #6b8cbc;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --border-color: #dee2e6;
+            --sidebar-width: 250px;
+            --table-cell-padding: 12px 15px; /* 默认单元格内边距 */
+            --table-row-spacing: 0px; /* 默认行间距 */
+            --table-col-spacing: 0px; /* 默认列间距 */
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            position: relative;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .sidebar-header h1 {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .workbook-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        .workbook-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid transparent;
+        }
+        .workbook-item:hover {
+            background-color: rgba(74, 111, 165, 0.05);
+        }
+        .workbook-item.active {
+            background-color: rgba(74, 111, 165, 0.1);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .sidebar-color-panel {
+            margin: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .panel-header {
+            background-color: var(--warning-color);
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .panel-header h3 {
+            color: var(--dark-color);
+            font-size: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+        .toggle-panel {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--dark-color);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        .toggle-panel:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        .panel-content {
+            max-height: 400px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .sidebar-color-panel.collapsed .panel-content {
+            max-height: 0;
+        }
+        .color-controls {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .color-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .color-btn {
+            padding: 10px 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+            min-height: 40px;
+            aspect-ratio: 1;
+        }
+        .color-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .color-btn.yellow {
+            background-color: #FFEB3B;
+        }
+        .color-btn.blue {
+            background-color: #2196F3;
+        }
+        .color-btn.red {
+            background-color: #F44336;
+        }
+        .color-btn.green {
+            background-color: #4CAF50;
+        }
+        .color-btn.purple {
+            background-color: #9C27B0;
+        }
+        .color-btn.orange {
+            background-color: #FF9800;
+        }
+        .color-btn.custom {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #ff9ff3);
+            color: white;
+            font-size: 1.2rem;
+        }
+        .color-btn.clear {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #dee2e6;
+            grid-column: span 3;
+            aspect-ratio: auto;
+        }
+        .color-notes {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .color-note-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-sample {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+        .color-sample.yellow {
+            background-color: rgba(255, 235, 59, 0.3);
+        }
+        .color-sample.blue {
+            background-color: rgba(33, 150, 243, 0.2);
+        }
+        .color-sample.red {
+            background-color: rgba(244, 67, 54, 0.2);
+        }
+        .color-sample.green {
+            background-color: rgba(76, 175, 80, 0.2);
+        }
+        .color-sample.purple {
+            background-color: rgba(156, 39, 176, 0.2);
+        }
+        .color-sample.orange {
+            background-color: rgba(255, 152, 0, 0.2);
+        }
+        .color-sample.custom-color {
+            background-color: var(--custom-color, #4a6fa5);
+        }
+        .color-note-input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .color-note-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+        }
+        .panel-footer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+        }
+        .add-workbook-btn {
+            margin: 15px;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .add-workbook-btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .top-bar {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .workbook-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            position: relative;
+        }
+        
+        /* ===== 新增：二级菜单样式 ===== */
+        .dropdown-container {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-toggle {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .dropdown-toggle:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .dropdown-toggle:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1000;
+            min-width: 180px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+            padding: 5px 0;
+            margin-top: 5px;
+            display: none;
+            animation: fadeIn 0.2s;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .dropdown-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+            color: var(--dark-color);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .dropdown-item:hover {
+            background-color: rgba(74, 111, 165, 0.1);
+            color: var(--primary-color);
+        }
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+        .dropdown-divider {
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 5px 0;
+        }
+        /* ===== 二级菜单样式结束 ===== */
+        
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: var(--dark-color);
+        }
+        .btn-info {
+            background-color: var(--info-color);
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* ===== 表格容器和表格样式 ===== */
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate; /* 改为separate以实现间距控制 */
+            border-spacing: var(--table-col-spacing) var(--table-row-spacing); /* 控制行列间距 */
+            min-width: 800px;
+        }
+        th, td {
+            padding: var(--table-cell-padding); /* 使用CSS变量控制内边距 */
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+        th {
+            background-color: var(--light-color);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        tr.search-match {
+            background-color: rgba(255, 193, 7, 0.2);
+        }
+        
+        /* ===== 新增：列宽调整样式 ===== */
+        .resizable-col {
+            position: relative;
+        }
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: -5px;
+            width: 10px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 10;
+        }
+        .resize-handle:hover, .resize-handle.resizing {
+            background-color: rgba(74, 111, 165, 0.3);
+        }
+        /* ===== 列宽调整样式结束 ===== */
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+        .delete-btn:hover {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 0 20px;
+            display: none;
+        }
+        .status.success {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+        .status.error {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+        .status.warning {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: var(--warning-color);
+            border: 1px solid var(--warning-color);
+        }
+        .status.info {
+            background-color: rgba(23, 162, 184, 0.1);
+            color: var(--info-color);
+            border: 1px solid var(--info-color);
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .auth-section {
+            background-color: rgba(74, 111, 165, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+        .auth-section h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .auth-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .auth-input-container {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .toggle-visibility {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+        }
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+        }
+        .sync-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .token-management {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .token-management p {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .token-management-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .token-management .btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        .share-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .share-section h4 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-section {
+            background-color: rgba(23, 162, 184, 0.05);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 0 20px 20px;
+            border-left: 4px solid var(--info-color);
+        }
+        .search-section h3 {
+            margin-bottom: 15px;
+            color: var(--info-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .search-input-container {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+        }
+        .search-options {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .search-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        .search-results {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .search-results.highlight {
+            color: var(--info-color);
+            font-weight: 600;
+        }
+        .view-mode-section {
+            background-color: rgba(40, 167, 69, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
+            border-left: 4px solid var(--success-color);
+        }
+        .view-mode-section h3 {
+            margin-bottom: 15px;
+            color: var(--success-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .readonly-table td {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .readonly-table tr:hover td {
+            background-color: #e9ecef;
+        }
+        .auto-refresh-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--success-color);
+            margin-left: 10px;
+        }
+        .auto-refresh-indicator .pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        .view-mode .auth-section,
+        .view-mode .search-section,
+        .view-mode .add-workbook-btn,
+        .view-mode .controls,
+        .view-mode .view-mode-section,
+        .view-mode .sidebar-color-panel {
+            display: none !important;
+        }
+        .view-mode .table-container {
+            margin-top: 0;
+        }
+        .view-mode .top-bar {
+            justify-content: center;
+            background-color: var(--success-color);
+            color: white;
+        }
+        .view-mode .workbook-title {
+            color: white;
+        }
+        .view-mode .workbook-title i {
+            color: white;
+        }
+        .row-selected {
+            background-color: rgba(74, 111, 165, 0.1) !important;
+        }
+        .row-yellow {
+            background-color: rgba(255, 235, 59, 0.3) !important;
+        }
+        .row-blue {
+            background-color: rgba(33, 150, 243, 0.2) !important;
+        }
+        .row-red {
+            background-color: rgba(244, 67, 54, 0.2) !important;
+        }
+        .row-green {
+            background-color: rgba(76, 175, 80, 0.2) !important;
+        }
+        .row-purple {
+            background-color: rgba(156, 39, 176, 0.2) !important;
+        }
+        .row-orange {
+            background-color: rgba(255, 152, 0, 0.2) !important;
+        }
+        .row-custom {
+            background-color: var(--custom-row-bg, rgba(74, 111, 165, 0.2)) !important;
+        }
+        .color-tag-cell {
+            font-weight: bold;
+            text-align: center;
+            width: 100px;
+        }
+        .color-tag-yellow {
+            color: #b3a200;
+            background-color: rgba(255, 235, 59, 0.2);
+        }
+        .color-tag-blue {
+            color: #1565C0;
+            background-color: rgba(33, 150, 243, 0.1);
+        }
+        .color-tag-red {
+            color: #C62828;
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+        .color-tag-green {
+            color: #2E7D32;
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        .color-tag-purple {
+            color: #7B1FA2;
+            background-color: rgba(156, 39, 176, 0.1);
+        }
+        .color-tag-orange {
+            color: #EF6C00;
+            background-color: rgba(255, 152, 0, 0.1);
+        }
+        .color-tag-custom {
+            background-color: var(--custom-tag-bg, rgba(74, 111, 165, 0.1));
+            color: var(--custom-tag-color, #4a6fa5);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            color: var(--primary-color);
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            position: absolute;
+            right: 20px;
+            top: 20px;
+        }
+        .close-modal:hover {
+            color: #000;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .color-tag-legend {
+            margin: 10px 20px 0;
+            padding: 15px;
+            background-color: rgba(255, 193, 7, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--warning-color);
+        }
+        .color-tag-legend h4 {
+            margin-bottom: 10px;
+            color: var(--warning-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .color-tag-legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .color-tag-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        .color-tag-legend-sample {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+        .color-tag-legend-sample.yellow {
+            background-color: rgba(255, 235, 59, 0.3);
+        }
+        .color-tag-legend-sample.blue {
+            background-color: rgba(33, 150, 243, 0.2);
+        }
+        .color-tag-legend-sample.red {
+            background-color: rgba(244, 67, 54, 0.2);
+        }
+        .color-tag-legend-sample.green {
+            background-color: rgba(76, 175, 80, 0.2);
+        }
+        .color-tag-legend-sample.purple {
+            background-color: rgba(156, 39, 176, 0.2);
+        }
+        .color-tag-legend-sample.orange {
+            background-color: rgba(255, 152, 0, 0.2);
+        }
+        .color-tag-legend-sample.custom {
+            background-color: var(--custom-color, #4a6fa5);
+        }
+        
+        /* ===== 新增：表格间距调节面板样式 ===== */
+        .table-spacing-panel {
+            background-color: rgba(23, 162, 184, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 20px;
+            border-left: 4px solid var(--info-color);
+        }
+        .table-spacing-panel h4 {
+            margin-bottom: 15px;
+            color: var(--info-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .spacing-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .spacing-control {
+            flex: 1;
+            min-width: 150px;
+        }
+        .spacing-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--dark-color);
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .spacing-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        .spacing-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--info-color);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .spacing-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--info-color);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .spacing-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--info-color);
+        }
+        .spacing-presets {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .spacing-preset-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .spacing-preset-btn:hover {
+            background-color: var(--light-color);
+        }
+        .spacing-preset-btn.active {
+            background-color: var(--info-color);
+            color: white;
+            border-color: var(--info-color);
+        }
+        /* ===== 表格间距调节面板样式结束 ===== */
+        
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            .workbook-list {
+                display: flex;
+                overflow-x: auto;
+                padding: 10px;
+            }
+            .workbook-item {
+                white-space: nowrap;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+            .workbook-item.active {
+                border-left: none;
+                border-bottom-color: var(--primary-color);
+            }
+            .controls {
+                flex-wrap: wrap;
+            }
+            .auth-form {
+                flex-direction: column;
+            }
+            .search-controls {
+                flex-direction: column;
+            }
+            .color-buttons {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .color-tag-legend-items {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .dropdown-menu {
+                position: fixed;
+                top: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: 300px;
+            }
+            .spacing-controls {
+                flex-direction: column;
+            }
+        }
+
+        /* === 登录页专用 === */
+        .login-only {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #f5f7fa;
+        }
+        .login-box {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,.1);
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .login-box h2 {
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .login-box .form-group {
+            margin-bottom: 15px;
+        }
+        .login-box .modal-footer {
+            justify-content: space-between;
+        }
+
+        /* === 权限相关样式 === */
+        .permission-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .permission-badge.owner {
+            background-color: #dc3545;
+            color: white;
+        }
+        .permission-badge.editor {
+            background-color: #28a745;
+            color: white;
+        }
+        .permission-badge.viewer {
+            background-color: #6c757d;
+            color: white;
+        }
+        .user-role-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-left: 5px;
+        }
+        .user-role-badge.admin {
+            background-color: #dc3545;
+            color: white;
+        }
+        .user-role-badge.editor {
+            background-color: #28a745;
+            color: white;
+        }
+        .user-role-badge.viewer {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-sm {
+            padding: 2px 8px;
+            font-size: 0.85em;
+        }
+        .current-user-info {
+            padding: 10px;
+            background: rgba(74, 111, 165, 0.1);
+            border-radius: 5px;
+            margin: 10px 15px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        .current-user-info span {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        /* === 自定义颜色相关样式 === */
+        .custom-color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .custom-color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: 2px solid #dee2e6;
+            border-radius: 4px;
+            padding: 0;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+
+        .custom-color-history {
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .custom-color-history h4 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        /* ===== 新增：添加表头模态框样式 ===== */
+        .add-header-modal .modal-content {
+            max-width: 600px;
+        }
+        .column-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .column-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .column-item:last-child {
+            border-bottom: none;
+        }
+        .column-item input {
+            flex: 1;
+        }
+        .column-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .column-actions button {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+        /* ===== 添加表头模态框样式结束 ===== */
+    </style>
+</head>
+<body>
+
+<!-- ====== 登录页（未登录时只显示这个） ====== -->
+<div id="loginOnly" class="login-only">
+    <div class="login-box">
+        <h2><i class="fas fa-table"></i> 多工作簿表格系统</h2>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="loginUser" class="form-control" placeholder="用户名">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="loginPwd" class="form-control" placeholder="密码">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="login()"><i class="fas fa-sign-in-alt"></i> 登录</button>
+            <button class="btn btn-success" onclick="reg()"><i class="fas fa-user-plus"></i> 注册</button>
+        </div>
+        <div id="loginMsg" class="status error" style="display:none;margin-top:10px;"></div>
+    </div>
+</div>
+
+<!-- ====== 主界面（登录成功后才显示） ====== -->
+<div id="mainApp" style="display:none;width:100%;">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1><i class="fas fa-table"></i> 多工作簿表格</h1>
+            <p>管理多个表格数据</p>
+        </div>
+        
+        <!-- 当前用户信息 -->
+        <div class="current-user-info" id="currentUserInfo">
+            欢迎，<span id="currentUserName"></span>
+            <div id="currentUserRole"></div>
+        </div>
+        
+        <div class="workbook-list" id="workbookList"></div>
+
+        <!-- 颜色标签 -->
+        <div class="sidebar-color-panel" id="sidebarColorPanel">
+            <div class="panel-header">
+                <h3><i class="fas fa-palette"></i> 颜色标签</h3>
+                <button class="toggle-panel" id="togglePanel"><i class="fas fa-chevron-up" id="panelIcon"></i></button>
+            </div>
+            <div class="panel-content">
+                <div class="color-controls">
+                    <div class="color-buttons">
+                        <button class="color-btn yellow" id="yellowBtn"></button>
+                        <button class="color-btn blue" id="blueBtn"></button>
+                        <button class="color-btn red" id="redBtn"></button>
+                        <button class="color-btn green" id="greenBtn"></button>
+                        <button class="color-btn purple" id="purpleBtn"></button>
+                        <button class="color-btn orange" id="orangeBtn"></button>
+                        <button class="color-btn custom" id="customColorBtn" title="自定义颜色"><i class="fas fa-palette"></i></button>
+                        <button class="color-btn clear" id="clearColorBtn"><i class="fas fa-eraser"></i> 清除标签</button>
+                    </div>
+                    
+                    <!-- 自定义颜色选择器 -->
+                    <div class="custom-color-container" id="customColorContainer" style="display: none; margin-top: 15px;">
+                        <div class="form-group">
+                            <label style="margin-bottom: 5px; font-size: 0.9rem; color: #666;">选择自定义颜色：</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="color" id="customColorPicker" value="#4a6fa5" style="width: 50px; height: 40px; border: none; cursor: pointer;">
+                                <input type="text" id="customColorInput" class="form-control" placeholder="#RRGGBB" style="flex: 1; padding: 8px 12px; font-size: 0.9rem;">
+                                <button class="btn btn-primary btn-sm" id="applyCustomColor" style="padding: 8px 12px;">
+                                    <i class="fas fa-check"></i> 应用
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 常用颜色预设 -->
+                        <div class="preset-colors" style="margin-top: 10px;">
+                            <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: #666;">常用颜色：</h4>
+                            <div id="presetColors" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                <!-- 常用颜色将通过JS动态添加 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 颜色备注说明 -->
+                    <div class="color-notes">
+                        <div class="color-note-item" data-color="yellow">
+                            <div class="color-sample yellow"></div>
+                            <input type="text" class="color-note-input" id="yellowNote" placeholder="黄色标签文字..." value="重要">
+                        </div>
+                        <div class="color-note-item" data-color="blue">
+                            <div class="color-sample blue"></div>
+                            <input type="text" class="color-note-input" id="blueNote" placeholder="蓝色标签文字..." value="一般">
+                        </div>
+                        <div class="color-note-item" data-color="red">
+                            <div class="color-sample red"></div>
+                            <input type="text" class="color-note-input" id="redNote" placeholder="红色标签文字..." value="紧急">
+                        </div>
+                        <div class="color-note-item" data-color="green">
+                            <div class="color-sample green"></div>
+                            <input type="text" class="color-note-input" id="greenNote" placeholder="绿色标签文字..." value="已完成">
+                        </div>
+                        <div class="color-note-item" data-color="purple">
+                            <div class="color-sample purple"></div>
+                            <input type="text" class="color-note-input" id="purpleNote" placeholder="紫色标签文字..." value="待审核">
+                        </div>
+                        <div class="color-note-item" data-color="orange">
+                            <div class="color-sample orange"></div>
+                            <input type="text" class="color-note-input" id="orangeNote" placeholder="橙色标签文字..." value="进行中">
+                        </div>
+                        <!-- 自定义颜色备注 -->
+                        <div class="color-note-item" id="customColorNote" style="display: none;">
+                            <div class="color-sample custom-color" id="customColorSample"></div>
+                            <input type="text" class="color-note-input" id="customNote" placeholder="自定义颜色备注..." value="">
+                        </div>
+                    </div>
+                    
+                    <!-- 颜色历史记录 -->
+                    <div class="custom-color-history" id="customColorHistory">
+                        <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: #666;">最近使用的颜色：</h4>
+                        <div id="colorHistoryList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <!-- 颜色历史将通过JS动态添加 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    点击表格行选择，然后点击颜色标签按钮
+                </div>
+            </div>
+        </div>
+        <button class="add-workbook-btn" id="addWorkbookBtn"><i class="fas fa-plus"></i> 添加工作簿</button>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+        <!-- 顶部栏 -->
+        <div class="top-bar">
+            <div class="workbook-title" id="workbookTitle">
+                <i class="fas fa-book"></i> <span id="currentWorkbookName">请选择工作簿</span>
+                <span id="permissionStatus" class="permission-badge viewer">权限: 查看者</span>
+            </div>
+            <div class="controls">
+                <!-- ===== 新增：添加新行的二级菜单 ===== -->
+                <div class="dropdown-container" id="addRowDropdown">
+                    <button class="dropdown-toggle" id="addRowBtn" disabled>
+                        <i class="fas fa-plus"></i> 添加新行 <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+                    </button>
+                    <div class="dropdown-menu" id="addRowMenu">
+                        <a href="javascript:void(0)" class="dropdown-item" id="addSingleRowBtn">
+                            <i class="fas fa-plus-circle"></i> 添加单行
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" id="addMultipleRowsBtn">
+                            <i class="fas fa-layer-group"></i> 添加多行
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="javascript:void(0)" class="dropdown-item" id="addHeaderBtn">
+                            <i class="fas fa-heading"></i> 添加表头列
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" id="manageHeadersBtn">
+                            <i class="fas fa-columns"></i> 管理表头
+                        </a>
+                    </div>
+                </div>
+                <!-- ===== 二级菜单结束 ===== -->
+                
+                <button class="btn btn-success" id="saveBtn" disabled><i class="fas fa-save"></i> 保存表格</button>
+                <button class="btn btn-warning" id="refreshBtn" disabled><i class="fas fa-sync"></i> 刷新数据</button>
+                <button class="btn btn-danger" id="deleteWorkbookBtn" disabled><i class="fas fa-trash"></i> 删除工作簿</button>
+                <button class="btn btn-warning" id="renameBtn" disabled><i class="fas fa-edit"></i> 重命名</button>
+                <button class="btn btn-info" id="exportBtn" disabled><i class="fas fa-file-export"></i> 导出</button>
+                <button class="btn btn-secondary" id="importBtn" disabled><i class="fas fa-file-import"></i> 导入</button>
+                <button class="btn btn-warning" id="permissionBtn" disabled><i class="fas fa-user-shield"></i> 权限</button>
+                <button class="btn btn-info" id="shareBtn" disabled><i class="fas fa-share"></i> 分享</button>
+                <button class="btn btn-secondary" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 退出</button>
+            </div>
+        </div>
+
+        <!-- ===== 新增：表格间距调节面板 ===== -->
+        <div class="table-spacing-panel" id="tableSpacingPanel">
+            <h4><i class="fas fa-arrows-alt-h"></i> 表格间距调节</h4>
+            <div class="spacing-controls">
+                <div class="spacing-control">
+                    <label>单元格内边距</label>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="100" value="12" class="spacing-slider" id="cellPaddingSlider">
+                        <span class="spacing-value" id="cellPaddingValue">12px</span>
+                    </div>
+                </div>
+                <div class="spacing-control">
+                    <label>行间距</label>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="50" value="0" class="spacing-slider" id="rowSpacingSlider">
+                        <span class="spacing-value" id="rowSpacingValue">0px</span>
+                    </div>
+                </div>
+                <div class="spacing-control">
+                    <label>列间距</label>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="50" value="0" class="spacing-slider" id="colSpacingSlider">
+                        <span class="spacing-value" id="colSpacingValue">0px</span>
+                    </div>
+                </div>
+            </div>
+            <div class="spacing-presets">
+                <button class="spacing-preset-btn" data-padding="8" data-row="0" data-col="0">紧凑</button>
+                <button class="spacing-preset-btn" data-padding="12" data-row="0" data-col="0">标准</button>
+                <button class="spacing-preset-btn" data-padding="16" data-row="5" data-col="5">宽松</button>
+                <button class="spacing-preset-btn" data-padding="20" data-row="10" data-col="10">极宽</button>
+                <button class="spacing-preset-btn" id="resetSpacingBtn">重置</button>
+            </div>
+        </div>
+        <!-- ===== 表格间距调节面板结束 ===== -->
+
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <h3><i class="fas fa-search"></i> 表格搜索</h3>
+            <div class="search-controls">
+                <div class="search-input-container">
+                    <input type="text" class="search-input" id="searchInput" placeholder="输入关键词搜索表格内容...">
+                    <button class="search-clear" id="clearSearchBtn" type="button"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="search-options">
+                    <div class="search-option"><input type="checkbox" id="caseSensitiveCheckbox"><label for="caseSensitiveCheckbox">区分大小写</label></div>
+                    <div class="search-option"><input type="checkbox" id="exactMatchCheckbox"><label for="exactMatchCheckbox">精确匹配</label></div>
+                </div>
+                <button class="btn btn-info" id="prevMatchBtn"><i class="fas fa-chevron-up"></i> 上一个</button>
+                <button class="btn btn-info" id="nextMatchBtn"><i class="fas fa-chevron-down"></i> 下一个</button>
+            </div>
+            <div class="search-results" id="searchResults">输入关键词开始搜索...</div>
+        </div>
+
+        <!-- 状态消息 -->
+        <div class="status" id="statusMessage"></div>
+
+        <!-- 表格容器 -->
+        <div class="table-container">
+            <table id="dataTable">
+                <thead></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 原有模态框 -->
+    <div class="modal" id="addWorkbookModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus"></i> 添加新工作簿</h2>
+                <button class="close-modal" onclick="closeAddModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="workbookName">工作簿名称</label>
+                <input type="text" class="form-control" id="workbookName" placeholder="例如: 客人寄付快递登记">
+            </div>
+            <div class="form-group">
+                <label for="workbookColumns">列设置 (每行一个列名)</label>
+                <textarea class="form-control" id="workbookColumns" rows="5" placeholder="姓名
+电话
+快递单号
+寄付日期">颜色标签
+姓名
+电话
+快递单号
+寄付日期</textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="createWorkbook()">创建工作簿</button>
+                <button class="btn" onclick="closeAddModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：重命名模态框 -->
+    <div class="modal" id="renameModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> 重命名工作簿</h2>
+                <button class="close-modal" onclick="closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="renameWorkbookName">新名称</label>
+                <input type="text" class="form-control" id="renameWorkbookName" placeholder="输入新名称">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="renameWorkbook()">确定</button>
+                <button class="btn" onclick="closeModal('renameModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：导入Excel模态框 -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-import"></i> 导入Excel数据</h2>
+                <button class="close-modal" onclick="closeModal('importModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <div class="file-upload" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer;" onclick="document.getElementById('excelFileInput').click()">
+                    <input type="file" id="excelFileInput" accept=".csv" style="display:none;">
+                    <div class="file-upload-label" style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #666;">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #4a6fa5;"></i>
+                        <span>点击选择CSV文件</span>
+                        <small>目前仅支持CSV格式</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="importCSVData()">开始导入</button>
+                <button class="btn" onclick="closeModal('importModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：权限管理模态框 -->
+    <div class="modal" id="permissionModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-shield"></i> 权限管理 - <span id="modalWorkbookName"></span></h2>
+                <button class="close-modal" onclick="closeModal('permissionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="current-permission" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                    <strong>当前权限:</strong>
+                    <span id="currentPermissionDisplay"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-users"></i> 添加用户权限</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select class="form-control" id="userSelect" style="flex: 2;">
+                            <option value="">选择用户...</option>
+                        </select>
+                        <select class="form-control" id="permissionSelect" style="flex: 1;">
+                            <option value="viewer">查看者</option>
+                            <option value="editor">编辑者</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="addUserPermission()" style="flex: 0;">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-list"></i> 已分配权限</label>
+                    <div class="permission-list" id="permissionList" style="max-height: 300px; overflow-y: auto;">
+                        <!-- 权限列表将通过JS动态加载 -->
+                    </div>
+                </div>
+                
+                <div class="form-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        权限说明: 
+                        <strong>查看者</strong> - 只能查看数据; 
+                        <strong>编辑者</strong> - 可以编辑数据; 
+                        <strong>所有者</strong> - 可以管理权限和删除工作簿
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="savePermissions()">保存权限</button>
+                <button class="btn" onclick="closeModal('permissionModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 新增：添加表头模态框 ===== -->
+    <div class="modal add-header-modal" id="addHeaderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-heading"></i> 添加表头列</h2>
+                <button class="close-modal" onclick="closeModal('addHeaderModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newHeaderName">新列名称</label>
+                    <input type="text" class="form-control" id="newHeaderName" placeholder="输入新列的名称">
+                </div>
+                <div class="form-group">
+                    <label>插入位置</label>
+                    <select class="form-control" id="headerPosition">
+                        <option value="end">末尾</option>
+                        <option value="start">开头</option>
+                        <option value="after">在指定列之后</option>
+                    </select>
+                </div>
+                <div class="form-group" id="targetColumnContainer" style="display: none;">
+                    <label for="targetColumn">目标列</label>
+                    <select class="form-control" id="targetColumn">
+                        <!-- 列选项将通过JS动态填充 -->
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="addNewHeader()">添加列</button>
+                <button class="btn" onclick="closeModal('addHeaderModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 新增：管理表头模态框 ===== -->
+    <div class="modal add-header-modal" id="manageHeadersModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-columns"></i> 管理表头</h2>
+                <button class="close-modal" onclick="closeModal('manageHeadersModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>当前表头列 (拖动重新排序，双击编辑)</label>
+                    <div class="column-list" id="headerList">
+                        <!-- 表头列将通过JS动态加载 -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="addNewHeaderItem()"><i class="fas fa-plus"></i> 添加新列</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveHeaders()">保存更改</button>
+                <button class="btn" onclick="closeModal('manageHeadersModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 新增：添加多行模态框 ===== -->
+    <div class="modal" id="addMultipleRowsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> 添加多行</h2>
+                <button class="close-modal" onclick="closeModal('addMultipleRowsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rowCount">要添加的行数</label>
+                    <input type="number" class="form-control" id="rowCount" min="1" max="100" value="5">
+                </div>
+                <div class="form-group">
+                    <label for="startPosition">起始位置</label>
+                    <select class="form-control" id="startPosition">
+                        <option value="end">表格末尾</option>
+                        <option value="start">表格开头</option>
+                        <option value="after">在当前选中行之后</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="fillWithTemplate"> 使用模板数据填充</label>
+                    <div id="templateFields" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">为新行设置默认值：</p>
+                        <!-- 模板字段将通过JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="addMultipleRows()">添加行</button>
+                <button class="btn" onclick="closeModal('addMultipleRowsModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ===================== 工具函数 ===================== */
+        async function apiCall(action, payload = {}) {
+            const res = await fetch('api.php?action=' + action, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const j = await res.json();
+            if (!j.ok) throw new Error(j.msg || 'API 错误');
+            return j.data;
+        }
+
+        /* ===================== 全局变量 ===================== */
+        let workbooks = [];
+        let currentWorkbook = null;
+        let tableData = [];
+        let selectedRowIndex = -1;
+        let colorLabels = { yellow: '重要', blue: '一般', red: '紧急', green: '已完成', purple: '待审核', orange: '进行中' };
+        let uid = null;
+        let currentShareHash = null;
+        let currentUserRole = 'editor';
+        let currentUsername = '';
+        let isAdmin = false;
+        let workbookPermissions = {};
+        
+        // 自定义颜色相关
+        let customColors = JSON.parse(localStorage.getItem('customColors')) || [];
+        let currentCustomColor = '#4a6fa5';
+        let currentCustomNote = '自定义';
+        
+        // 预设常用颜色
+        const presetColors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#FF9FF3',
+            '#FDCB6E', '#00B894', '#00CEC9', '#6C5CE7', '#FD79A8', '#A29BFE',
+            '#FFD93D', '#6BCF7F', '#4D96FF', '#9D65C9', '#FF7B54', '#3FA796'
+        ];
+
+        // 权限常量
+        const PERMISSIONS = {
+            OWNER: 'owner',
+            EDITOR: 'editor',
+            VIEWER: 'viewer'
+        };
+
+        const ROLES = {
+            ADMIN: 'admin',
+            EDITOR: 'editor',
+            VIEWER: 'viewer'
+        };
+
+        /* === 控制按钮启用/禁用 === */
+        function toggleControls(on) {
+            const buttons = ['addRowBtn', 'saveBtn', 'refreshBtn', 'deleteWorkbookBtn', 'shareBtn', 'renameBtn', 'exportBtn', 'importBtn', 'permissionBtn'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = !on;
+            });
+        }
+
+        /* ===================== 新增：表格间距调节功能 ===================== */
+        function initTableSpacingControls() {
+            const cellPaddingSlider = document.getElementById('cellPaddingSlider');
+            const rowSpacingSlider = document.getElementById('rowSpacingSlider');
+            const colSpacingSlider = document.getElementById('colSpacingSlider');
+            
+            const cellPaddingValue = document.getElementById('cellPaddingValue');
+            const rowSpacingValue = document.getElementById('rowSpacingValue');
+            const colSpacingValue = document.getElementById('colSpacingValue');
+            
+            // 从localStorage加载保存的间距设置
+            const savedSpacing = JSON.parse(localStorage.getItem('tableSpacing')) || {
+                cellPadding: 12,
+                rowSpacing: 0,
+                colSpacing: 0
+            };
+            
+            // 设置滑块初始值
+            cellPaddingSlider.value = savedSpacing.cellPadding;
+            rowSpacingSlider.value = savedSpacing.rowSpacing;
+            colSpacingSlider.value = savedSpacing.colSpacing;
+            
+            // 更新显示值
+            updateSpacingDisplay();
+            
+            // 应用保存的间距设置
+            applyTableSpacing(savedSpacing.cellPadding, savedSpacing.rowSpacing, savedSpacing.colSpacing);
+            
+            // 添加滑块事件监听
+            cellPaddingSlider.addEventListener('input', function() {
+                updateSpacingDisplay();
+                applyTableSpacing(this.value, rowSpacingSlider.value, colSpacingSlider.value);
+                saveSpacingSettings();
+            });
+            
+            rowSpacingSlider.addEventListener('input', function() {
+                updateSpacingDisplay();
+                applyTableSpacing(cellPaddingSlider.value, this.value, colSpacingSlider.value);
+                saveSpacingSettings();
+            });
+            
+            colSpacingSlider.addEventListener('input', function() {
+                updateSpacingDisplay();
+                applyTableSpacing(cellPaddingSlider.value, rowSpacingSlider.value, this.value);
+                saveSpacingSettings();
+            });
+            
+            // 更新显示值函数
+            function updateSpacingDisplay() {
+                cellPaddingValue.textContent = cellPaddingSlider.value + 'px';
+                rowSpacingValue.textContent = rowSpacingSlider.value + 'px';
+                colSpacingValue.textContent = colSpacingSlider.value + 'px';
+            }
+            
+            // 预设按钮
+            const presetButtons = document.querySelectorAll('.spacing-preset-btn:not(#resetSpacingBtn)');
+            presetButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const padding = this.dataset.padding;
+                    const row = this.dataset.row;
+                    const col = this.dataset.col;
+                    
+                    cellPaddingSlider.value = padding;
+                    rowSpacingSlider.value = row;
+                    colSpacingSlider.value = col;
+                    
+                    updateSpacingDisplay();
+                    applyTableSpacing(padding, row, col);
+                    saveSpacingSettings();
+                    
+                    // 更新激活状态
+                    presetButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // 重置按钮
+            document.getElementById('resetSpacingBtn').addEventListener('click', function() {
+                cellPaddingSlider.value = 12;
+                rowSpacingSlider.value = 0;
+                colSpacingSlider.value = 0;
+                
+                updateSpacingDisplay();
+                applyTableSpacing(12, 0, 0);
+                saveSpacingSettings();
+                
+                // 移除所有激活状态
+                presetButtons.forEach(b => b.classList.remove('active'));
+            });
+        }
+        
+        // 应用表格间距
+        function applyTableSpacing(cellPadding, rowSpacing, colSpacing) {
+            // 计算实际的内边距值
+            const paddingValue = cellPadding + 'px ' + (cellPadding * 1.25) + 'px';
+            
+            // 更新CSS变量
+            document.documentElement.style.setProperty('--table-cell-padding', paddingValue);
+            document.documentElement.style.setProperty('--table-row-spacing', rowSpacing + 'px');
+            document.documentElement.style.setProperty('--table-col-spacing', colSpacing + 'px');
+            
+            // 如果表格已渲染，强制重新渲染
+            if (currentWorkbook) {
+                renderTable();
+            }
+        }
+        
+        // 保存间距设置到localStorage
+        function saveSpacingSettings() {
+            const spacingSettings = {
+                cellPadding: document.getElementById('cellPaddingSlider').value,
+                rowSpacing: document.getElementById('rowSpacingSlider').value,
+                colSpacing: document.getElementById('colSpacingSlider').value
+            };
+            localStorage.setItem('tableSpacing', JSON.stringify(spacingSettings));
+        }
+
+        /* ===================== 新增：二级菜单功能 ===================== */
+        function initDropdownMenu() {
+            const dropdownToggle = document.getElementById('addRowBtn');
+            const dropdownMenu = document.getElementById('addRowMenu');
+            
+            // 点击切换菜单显示/隐藏
+            dropdownToggle.addEventListener('click', function(e) {
+                if (this.disabled) return;
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+            
+            // 点击其他区域关闭菜单
+            document.addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+            });
+            
+            // 阻止菜单内部点击事件冒泡
+            dropdownMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // 绑定菜单项功能
+            document.getElementById('addSingleRowBtn').addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+                addSingleRow();
+            });
+            
+            document.getElementById('addMultipleRowsBtn').addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+                showAddMultipleRowsModal();
+            });
+            
+            document.getElementById('addHeaderBtn').addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+                showAddHeaderModal();
+            });
+            
+            document.getElementById('manageHeadersBtn').addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+                showManageHeadersModal();
+            });
+        }
+        
+        // 添加单行
+        function addSingleRow() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            
+            const newRow = {};
+            currentWorkbook.columns.forEach(c => newRow[c] = '');
+            newRow['_rowColor'] = '';
+            tableData.push(newRow);
+            renderTable();
+            showStatus('新行已添加，请保存', 'warning');
+        }
+        
+        // 显示添加多行模态框
+        function showAddMultipleRowsModal() {
+            if (!currentWorkbook) {
+                showStatus('请先选择一个工作簿', 'warning');
+                return;
+            }
+            
+            const modal = document.getElementById('addMultipleRowsModal');
+            modal.style.display = 'flex';
+            
+            // 生成模板字段
+            const templateFields = document.getElementById('templateFields');
+            templateFields.innerHTML = '';
+            
+            // 排除颜色标签列
+            const editableColumns = currentWorkbook.columns.filter(col => col !== '颜色标签');
+            
+            editableColumns.forEach(col => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.style.marginBottom = '8px';
+                fieldDiv.innerHTML = `
+                    <label style="display: block; margin-bottom: 4px; font-size: 0.9rem;">${col}</label>
+                    <input type="text" class="form-control" data-column="${col}" placeholder="留空则为空值" style="padding: 6px 10px; font-size: 0.9rem;">
+                `;
+                templateFields.appendChild(fieldDiv);
+            });
+            
+            // 显示/隐藏模板字段
+            document.getElementById('fillWithTemplate').addEventListener('change', function() {
+                templateFields.style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // 更新起始位置选项
+            const startPosition = document.getElementById('startPosition');
+            if (selectedRowIndex === -1) {
+                // 如果没有选中行，禁用"在当前选中行之后"选项
+                startPosition.innerHTML = `
+                    <option value="end">表格末尾</option>
+                    <option value="start">表格开头</option>
+                    <option value="after" disabled>在当前选中行之后</option>
+                `;
+            } else {
+                startPosition.innerHTML = `
+                    <option value="end">表格末尾</option>
+                    <option value="start">表格开头</option>
+                    <option value="after">在当前选中行之后</option>
+                `;
+            }
+        }
+        
+        // 添加多行
+        function addMultipleRows() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            
+            const rowCount = parseInt(document.getElementById('rowCount').value) || 5;
+            const startPosition = document.getElementById('startPosition').value;
+            const fillWithTemplate = document.getElementById('fillWithTemplate').checked;
+            
+            if (rowCount < 1 || rowCount > 100) {
+                showStatus('行数必须在1-100之间', 'error');
+                return;
+            }
+            
+            // 准备模板数据
+            const templateData = {};
+            if (fillWithTemplate) {
+                const templateInputs = document.querySelectorAll('#templateFields input');
+                templateInputs.forEach(input => {
+                    const column = input.dataset.column;
+                    templateData[column] = input.value;
+                });
+            }
+            
+            // 创建新行
+            const newRows = [];
+            for (let i = 0; i < rowCount; i++) {
+                const newRow = {};
+                currentWorkbook.columns.forEach(c => {
+                    // 使用模板数据或空值
+                    newRow[c] = templateData[c] || '';
+                });
+                newRow['_rowColor'] = '';
+                newRows.push(newRow);
+            }
+            
+            // 插入新行
+            let insertIndex;
+            switch (startPosition) {
+                case 'start':
+                    insertIndex = 0;
+                    tableData.unshift(...newRows);
+                    break;
+                case 'after':
+                    insertIndex = selectedRowIndex + 1;
+                    if (selectedRowIndex === -1) {
+                        tableData.push(...newRows);
+                        insertIndex = tableData.length - newRows.length;
+                    } else {
+                        // 在选中行之后插入
+                        tableData.splice(selectedRowIndex + 1, 0, ...newRows);
+                    }
+                    break;
+                case 'end':
+                default:
+                    insertIndex = tableData.length;
+                    tableData.push(...newRows);
+                    break;
+            }
+            
+            closeModal('addMultipleRowsModal');
+            renderTable();
+            showStatus(`已添加 ${rowCount} 行数据，请保存`, 'success');
+        }
+        
+        // 显示添加表头模态框
+        function showAddHeaderModal() {
+            if (!currentWorkbook) {
+                showStatus('请先选择一个工作簿', 'warning');
+                return;
+            }
+            
+            const modal = document.getElementById('addHeaderModal');
+            modal.style.display = 'flex';
+            
+            // 清空输入
+            document.getElementById('newHeaderName').value = '';
+            
+            // 填充目标列选项
+            const targetColumnSelect = document.getElementById('targetColumn');
+            targetColumnSelect.innerHTML = '';
+            
+            // 排除颜色标签列
+            const editableColumns = currentWorkbook.columns.filter(col => col !== '颜色标签');
+            
+            editableColumns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col;
+                option.textContent = col;
+                targetColumnSelect.appendChild(option);
+            });
+            
+            // 显示/隐藏目标列选择
+            document.getElementById('headerPosition').addEventListener('change', function() {
+                const targetColumnContainer = document.getElementById('targetColumnContainer');
+                targetColumnContainer.style.display = this.value === 'after' ? 'block' : 'none';
+            });
+        }
+        
+        // 添加新表头列
+        function addNewHeader() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            
+            const newHeaderName = document.getElementById('newHeaderName').value.trim();
+            if (!newHeaderName) {
+                showStatus('请输入列名称', 'error');
+                return;
+            }
+            
+            // 检查列名是否已存在
+            if (currentWorkbook.columns.includes(newHeaderName)) {
+                showStatus('列名已存在', 'error');
+                return;
+            }
+            
+            const position = document.getElementById('headerPosition').value;
+            let insertIndex = currentWorkbook.columns.length; // 默认插入到末尾
+            
+            // 确定插入位置
+            if (position === 'start') {
+                insertIndex = 0;
+            } else if (position === 'after') {
+                const targetColumn = document.getElementById('targetColumn').value;
+                const targetIndex = currentWorkbook.columns.indexOf(targetColumn);
+                if (targetIndex !== -1) {
+                    insertIndex = targetIndex + 1;
+                }
+            }
+            
+            // 插入新列
+            currentWorkbook.columns.splice(insertIndex, 0, newHeaderName);
+            
+            // 为现有数据添加新列
+            tableData.forEach(row => {
+                row[newHeaderName] = '';
+            });
+            
+            closeModal('addHeaderModal');
+            renderTable();
+            showStatus(`已添加新列: ${newHeaderName}，请保存`, 'success');
+        }
+        
+        // 显示管理表头模态框
+        function showManageHeadersModal() {
+            if (!currentWorkbook) {
+                showStatus('请先选择一个工作簿', 'warning');
+                return;
+            }
+            
+            const modal = document.getElementById('manageHeadersModal');
+            modal.style.display = 'flex';
+            
+            // 加载表头列表
+            loadHeaderList();
+        }
+        
+        // 加载表头列表
+        function loadHeaderList() {
+            const headerList = document.getElementById('headerList');
+            headerList.innerHTML = '';
+            
+            // 排除颜色标签列（它是特殊的）
+            const editableColumns = currentWorkbook.columns.filter(col => col !== '颜色标签');
+            
+            editableColumns.forEach((col, index) => {
+                const columnItem = document.createElement('div');
+                columnItem.className = 'column-item';
+                columnItem.dataset.column = col;
+                columnItem.innerHTML = `
+                    <span style="color: #666; font-size: 0.9rem; min-width: 30px;">${index + 1}</span>
+                    <input type="text" class="form-control" value="${col}" style="flex: 1; padding: 6px 10px; font-size: 0.9rem;">
+                    <div class="column-actions">
+                        <button class="btn btn-danger btn-sm delete-column-btn" title="删除此列">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm move-up-btn" title="上移" ${index === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm move-down-btn" title="下移" ${index === editableColumns.length - 1 ? 'disabled' : ''}>
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                    </div>
+                `;
+                
+                headerList.appendChild(columnItem);
+            });
+            
+            // 添加事件监听
+            addHeaderListEventListeners();
+            
+            // 初始化可拖拽排序
+            initDraggableHeaders();
+        }
+        
+        // 为表头列表添加事件监听
+        function addHeaderListEventListeners() {
+            // 删除列按钮
+            document.querySelectorAll('.delete-column-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const columnItem = this.closest('.column-item');
+                    const columnName = columnItem.dataset.column;
+                    
+                    if (confirm(`确定要删除列 "${columnName}" 吗？这将删除该列的所有数据。`)) {
+                        columnItem.remove();
+                    }
+                });
+            });
+            
+            // 上移按钮
+            document.querySelectorAll('.move-up-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const columnItem = this.closest('.column-item');
+                    const prevItem = columnItem.previousElementSibling;
+                    
+                    if (prevItem) {
+                        columnItem.parentNode.insertBefore(columnItem, prevItem);
+                        updateHeaderListOrder();
+                    }
+                });
+            });
+            
+            // 下移按钮
+            document.querySelectorAll('.move-down-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const columnItem = this.closest('.column-item');
+                    const nextItem = columnItem.nextElementSibling;
+                    
+                    if (nextItem) {
+                        columnItem.parentNode.insertBefore(nextItem, columnItem);
+                        updateHeaderListOrder();
+                    }
+                });
+            });
+            
+            // 双击编辑列名
+            document.querySelectorAll('.column-item input').forEach(input => {
+                input.addEventListener('dblclick', function() {
+                    this.select();
+                });
+                
+                input.addEventListener('blur', function() {
+                    const newName = this.value.trim();
+                    if (newName) {
+                        const columnItem = this.closest('.column-item');
+                        columnItem.dataset.column = newName;
+                    }
+                });
+                
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        this.blur();
+                    }
+                });
+            });
+        }
+        
+        // 更新表头列表顺序显示
+        function updateHeaderListOrder() {
+            const columnItems = document.querySelectorAll('.column-item');
+            columnItems.forEach((item, index) => {
+                const numberSpan = item.querySelector('span');
+                numberSpan.textContent = index + 1;
+                
+                // 更新移动按钮状态
+                const moveUpBtn = item.querySelector('.move-up-btn');
+                const moveDownBtn = item.querySelector('.move-down-btn');
+                
+                moveUpBtn.disabled = index === 0;
+                moveDownBtn.disabled = index === columnItems.length - 1;
+            });
+        }
+        
+        // 初始化可拖拽排序
+        function initDraggableHeaders() {
+            const headerList = document.getElementById('headerList');
+            let draggedItem = null;
+            
+            // 为每个列项添加拖拽属性
+            document.querySelectorAll('.column-item').forEach(item => {
+                item.setAttribute('draggable', 'true');
+                
+                item.addEventListener('dragstart', function(e) {
+                    draggedItem = this;
+                    this.style.opacity = '0.5';
+                });
+                
+                item.addEventListener('dragend', function(e) {
+                    this.style.opacity = '';
+                    draggedItem = null;
+                });
+                
+                item.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                });
+                
+                item.addEventListener('dragenter', function(e) {
+                    e.preventDefault();
+                    if (this !== draggedItem) {
+                        this.style.borderTop = '2px solid #4a6fa5';
+                    }
+                });
+                
+                item.addEventListener('dragleave', function(e) {
+                    this.style.borderTop = '';
+                });
+                
+                item.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderTop = '';
+                    
+                    if (this !== draggedItem) {
+                        const allItems = Array.from(headerList.querySelectorAll('.column-item'));
+                        const draggedIndex = allItems.indexOf(draggedItem);
+                        const targetIndex = allItems.indexOf(this);
+                        
+                        if (draggedIndex < targetIndex) {
+                            headerList.insertBefore(draggedItem, this.nextSibling);
+                        } else {
+                            headerList.insertBefore(draggedItem, this);
+                        }
+                        
+                        updateHeaderListOrder();
+                    }
+                });
+            });
+        }
+        
+        // 添加新列项目
+        function addNewHeaderItem() {
+            const headerList = document.getElementById('headerList');
+            const columnCount = headerList.children.length + 1;
+            
+            const columnItem = document.createElement('div');
+            columnItem.className = 'column-item';
+            columnItem.dataset.column = `新列${columnCount}`;
+            columnItem.innerHTML = `
+                <span style="color: #666; font-size: 0.9rem; min-width: 30px;">${columnCount}</span>
+                <input type="text" class="form-control" value="新列${columnCount}" style="flex: 1; padding: 6px 10px; font-size: 0.9rem;">
+                <div class="column-actions">
+                    <button class="btn btn-danger btn-sm delete-column-btn" title="删除此列">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm move-up-btn" title="上移">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm move-down-btn" title="下移">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                </div>
+            `;
+            
+            headerList.appendChild(columnItem);
+            addHeaderListEventListeners();
+            updateHeaderListOrder();
+            
+            // 滚动到底部
+            headerList.scrollTop = headerList.scrollHeight;
+        }
+        
+        // 保存表头更改
+        function saveHeaders() {
+            if (!currentWorkbook) return;
+            
+            // 收集所有列（包括颜色标签列）
+            const headerList = document.getElementById('headerList');
+            const columnItems = headerList.querySelectorAll('.column-item');
+            const newColumns = ['颜色标签']; // 颜色标签列始终在第一位
+            
+            // 收集列名
+            columnItems.forEach(item => {
+                const input = item.querySelector('input');
+                const columnName = input.value.trim();
+                if (columnName) {
+                    newColumns.push(columnName);
+                }
+            });
+            
+            // 检查是否有重复列名
+            const uniqueColumns = [...new Set(newColumns)];
+            if (uniqueColumns.length !== newColumns.length) {
+                showStatus('存在重复的列名，请修改', 'error');
+                return;
+            }
+            
+            // 更新数据：处理列的变化
+            const oldColumns = [...currentWorkbook.columns];
+            currentWorkbook.columns = newColumns;
+            
+            // 更新表格数据
+            tableData.forEach(row => {
+                // 创建新行对象
+                const newRow = {};
+                newColumns.forEach(col => {
+                    if (oldColumns.includes(col)) {
+                        // 保留原有数据
+                        newRow[col] = row[col] || '';
+                    } else {
+                        // 新列为空值
+                        newRow[col] = '';
+                    }
+                });
+                
+                // 保留颜色标签信息
+                if (row['_rowColor']) newRow['_rowColor'] = row['_rowColor'];
+                if (row['_customColor']) newRow['_customColor'] = row['_customColor'];
+                if (row['_customNote']) newRow['_customNote'] = row['_customNote'];
+                
+                // 替换原行
+                Object.keys(row).forEach(key => {
+                    row[key] = newRow[key] || '';
+                });
+            });
+            
+            closeModal('manageHeadersModal');
+            renderTable();
+            showStatus('表头已更新，请保存', 'success');
+        }
+
+        /* ===================== 自定义颜色功能 ===================== */
+        
+        // 初始化自定义颜色选择器
+        function initCustomColorPicker() {
+            const customColorBtn = document.getElementById('customColorBtn');
+            const customColorContainer = document.getElementById('customColorContainer');
+            const customColorPicker = document.getElementById('customColorPicker');
+            const customColorInput = document.getElementById('customColorInput');
+            const applyCustomColorBtn = document.getElementById('applyCustomColor');
+            
+            // 显示/隐藏自定义颜色选择器
+            customColorBtn.addEventListener('click', () => {
+                customColorContainer.style.display = 
+                    customColorContainer.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            // 颜色选择器变化时更新输入框
+            customColorPicker.addEventListener('input', (e) => {
+                customColorInput.value = e.target.value;
+                updateCustomColorSample(e.target.value);
+            });
+            
+            // 输入框变化时更新颜色选择器
+            customColorInput.addEventListener('input', (e) => {
+                const color = e.target.value;
+                if (isValidColor(color)) {
+                    customColorPicker.value = normalizeColor(color);
+                    updateCustomColorSample(color);
+                }
+            });
+            
+            // 应用自定义颜色
+            applyCustomColorBtn.addEventListener('click', () => {
+                const color = customColorInput.value || customColorPicker.value;
+                if (isValidColor(color)) {
+                    applyCustomColor(normalizeColor(color));
+                    saveCustomColor(normalizeColor(color));
+                } else {
+                    showStatus('请输入有效的颜色值（如 #FF0000 或 red）', 'error');
+                }
+            });
+            
+            // 回车键应用颜色
+            customColorInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    applyCustomColorBtn.click();
+                }
+            });
+            
+            // 初始化预设颜色
+            initPresetColors();
+            
+            // 加载自定义颜色历史
+            loadCustomColorHistory();
+        }
+        
+        // 初始化预设颜色
+        function initPresetColors() {
+            const presetContainer = document.getElementById('presetColors');
+            presetColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'custom-color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.title = color;
+                swatch.onclick = () => {
+                    document.getElementById('customColorInput').value = color;
+                    document.getElementById('customColorPicker').value = color;
+                    updateCustomColorSample(color);
+                    applyCustomColor(color);
+                    saveCustomColor(color);
+                };
+                presetContainer.appendChild(swatch);
+            });
+        }
+        
+        // 验证颜色是否有效
+        function isValidColor(color) {
+            if (!color) return false;
+            const s = new Option().style;
+            s.color = color;
+            return s.color !== '';
+        }
+        
+        // 标准化颜色格式
+        function normalizeColor(color) {
+            if (!color) return '#4a6fa5';
+            if (color.startsWith('#')) {
+                // 确保是6位十六进制
+                if (color.length === 4) { // #RGB
+                    return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+                }
+                return color.toUpperCase();
+            }
+            return color;
+        }
+        
+        // 更新自定义颜色样本
+        function updateCustomColorSample(color) {
+            const sample = document.getElementById('customColorSample');
+            if (sample) {
+                sample.style.backgroundColor = color;
+            }
+        }
+        
+        // 应用自定义颜色
+        function applyCustomColor(color) {
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            if (selectedRowIndex === -1) {
+                return showStatus('请先选择要标记的行', 'warning');
+            }
+            
+            currentCustomColor = color;
+            
+            // 显示自定义颜色备注输入
+            const customNoteItem = document.getElementById('customColorNote');
+            const customNoteInput = document.getElementById('customNote');
+            
+            if (customNoteItem && customNoteInput) {
+                customNoteItem.style.display = 'flex';
+                customNoteInput.value = '';
+                customNoteInput.placeholder = '请输入备注...';
+                customNoteInput.focus();
+                
+                // 监听备注输入完成
+                const handleNoteInput = () => {
+                    currentCustomNote = customNoteInput.value || '自定义';
+                    applyCustomColorToRow(color);
+                    customNoteItem.style.display = 'none';
+                };
+                
+                customNoteInput.onblur = handleNoteInput;
+                customNoteInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        handleNoteInput();
+                    }
+                };
+            } else {
+                currentCustomNote = '自定义';
+                applyCustomColorToRow(color);
+            }
+        }
+        
+        // 将自定义颜色应用到行
+        function applyCustomColorToRow(color) {
+            if (selectedRowIndex === -1) return;
+            
+            tableData[selectedRowIndex]._rowColor = 'custom';
+            tableData[selectedRowIndex]._customColor = color;
+            tableData[selectedRowIndex]._customNote = currentCustomNote;
+            
+            renderTable();
+            saveToDB();
+            showStatus(`已应用自定义颜色标签: ${currentCustomNote}`, 'success');
+            
+            // 清空选择
+            selectedRowIndex = -1;
+            document.querySelectorAll('.row-selected').forEach(r => r.classList.remove('row-selected'));
+        }
+        
+        // 保存自定义颜色到历史记录
+        function saveCustomColor(color) {
+            if (!customColors.includes(color)) {
+                customColors.unshift(color);
+                if (customColors.length > 10) {
+                    customColors = customColors.slice(0, 10);
+                }
+                localStorage.setItem('customColors', JSON.stringify(customColors));
+                loadCustomColorHistory();
+            }
+        }
+        
+        // 加载自定义颜色历史
+        function loadCustomColorHistory() {
+            const historyList = document.getElementById('colorHistoryList');
+            if (!historyList) return;
+            
+            historyList.innerHTML = '';
+            
+            if (customColors.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.cssText = 'color: #666; font-size: 0.9rem; text-align: center; width: 100%; padding: 10px;';
+                emptyMsg.textContent = '暂无颜色历史记录';
+                historyList.appendChild(emptyMsg);
+                return;
+            }
+            
+            customColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'custom-color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.title = color;
+                swatch.onclick = () => {
+                    document.getElementById('customColorInput').value = color;
+                    document.getElementById('customColorPicker').value = color;
+                    updateCustomColorSample(color);
+                    applyCustomColor(color);
+                };
+                historyList.appendChild(swatch);
+            });
+        }
+        
+        // 辅助函数：十六进制转RGBA
+        function hexToRgba(hex, alpha) {
+            if (!hex) return `rgba(74, 111, 165, ${alpha})`;
+            
+            // 处理3位或6位十六进制
+            let hexValue = hex.replace('#', '');
+            if (hexValue.length === 3) {
+                hexValue = hexValue.split('').map(c => c + c).join('');
+            }
+            
+            const r = parseInt(hexValue.substring(0, 2), 16);
+            const g = parseInt(hexValue.substring(2, 4), 16);
+            const b = parseInt(hexValue.substring(4, 6), 16);
+            
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        
+        // 辅助函数：获取对比色（黑或白）
+        function getContrastColor(hexColor) {
+            if (!hexColor) return '#000000';
+            
+            let hexValue = hexColor.replace('#', '');
+            if (hexValue.length === 3) {
+                hexValue = hexValue.split('').map(c => c + c).join('');
+            }
+            
+            const r = parseInt(hexValue.substring(0, 2), 16);
+            const g = parseInt(hexValue.substring(2, 4), 16);
+            const b = parseInt(hexValue.substring(4, 6), 16);
+            
+            // 计算亮度
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness > 128 ? '#000000' : '#FFFFFF';
+        }
+        
+        // 获取颜色备注
+        function getColorNote(color) {
+            if (color === 'custom') return '自定义';
+            
+            const noteInput = document.getElementById(`${color}Note`);
+            return noteInput ? noteInput.value : color;
+        }
+
+        /* ===================== 登录/注册/退出 ===================== */
+        async function login() {
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPwd').value;
+            try {
+                const res = await fetch('api.php?action=login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ u, p })
+                });
+                const j = await res.json();
+                if (j.ok) {
+                    uid = j.uid;
+                    currentUserRole = j.role || 'editor';
+                    currentUsername = j.username || u;
+                    isAdmin = currentUserRole === ROLES.ADMIN;
+                    
+                    // 更新用户信息显示
+                    document.getElementById('currentUserName').textContent = currentUsername;
+                    document.getElementById('currentUserRole').innerHTML = 
+                        `<span class="user-role-badge ${currentUserRole}">${currentUserRole}</span>`;
+                    
+                    document.getElementById('loginOnly').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'flex';
+                    await loadFromDB();
+                    await loadPermissions();
+                    
+                    // 初始化自定义颜色选择器
+                    initCustomColorPicker();
+                    // 初始化二级菜单
+                    initDropdownMenu();
+                    // 初始化表格间距调节
+                    initTableSpacingControls();
+                    
+                    showStatus('登录成功 - 角色: ' + currentUserRole, 'success');
+                } else {
+                    showLoginMsg(j.msg, 'error');
+                }
+            } catch (e) {
+                showLoginMsg(e.message, 'error');
+            }
+        }
+
+        async function reg() {
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPwd').value;
+            try {
+                const res = await fetch('api.php?action=reg', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ u, p })
+                });
+                const j = await res.json();
+                showLoginMsg(j.ok ? '注册成功，请登录' : j.msg, j.ok ? 'success' : 'error');
+            } catch (e) {
+                showLoginMsg(e.message, 'error');
+            }
+        }
+
+        function logout() {
+            fetch('api.php?action=logout', { method: 'POST' });
+            uid = null;
+            location.reload();
+        }
+
+        function showLoginMsg(msg, type) {
+            const box = document.getElementById('loginMsg');
+            box.textContent = msg;
+            box.className = `status ${type}`;
+            box.style.display = 'block';
+            setTimeout(() => box.style.display = 'none', 3000);
+        }
+
+        /* === 分享工作簿 === */
+        async function shareWorkbooks() {
+            if (!uid) { showStatus('先登录', 'warning'); return; }
+            try {
+                currentWorkbook.data = tableData;
+                const payload = { workbooks: workbooks.map(w => ({...w, data: w.data})) };
+                const res = await fetch('api.php?action=share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const j = await res.json();
+                if (j.ok) {
+                    const url = location.origin + location.pathname + '?view=' + j.hash;
+                    navigator.clipboard.writeText(url);
+                    showStatus('分享链接已复制: ' + url, 'success');
+                } else {
+                    showStatus(j.msg, 'error');
+                }
+            } catch (e) {
+                showStatus(e.message, 'error');
+            }
+        }
+
+        /* ===================== 权限管理 ===================== */
+        async function loadPermissions() {
+            try {
+                const res = await fetch('api.php?action=get_permissions');
+                const j = await res.json();
+                if (j.ok) {
+                    workbookPermissions = j.permissions || {};
+                    updateUIByPermissions();
+                }
+            } catch (e) {
+                console.error('加载权限失败:', e);
+            }
+        }
+
+        function updateUIByPermissions() {
+            const currentPerm = getCurrentWorkbookPermission();
+            const permName = getPermissionName(currentPerm);
+            
+            // 更新权限显示
+            const permStatus = document.getElementById('permissionStatus');
+            permStatus.textContent = `权限: ${permName}`;
+            permStatus.className = `permission-badge ${currentPerm}`;
+            
+            // 根据权限启用/禁用按钮
+            const canEdit = hasPermission(PERMISSIONS.EDITOR) || isAdmin;
+            const canDelete = hasPermission(PERMISSIONS.OWNER) || isAdmin;
+            
+            document.getElementById('addRowBtn').disabled = !canEdit;
+            document.getElementById('saveBtn').disabled = !canEdit;
+            document.getElementById('deleteWorkbookBtn').disabled = !canDelete;
+            document.getElementById('renameBtn').disabled = !canDelete;
+            document.getElementById('importBtn').disabled = !canEdit;
+            document.getElementById('permissionBtn').disabled = !canDelete;
+            
+            // 搜索和分享按钮对所有有查看权限的用户开放
+            const canView = hasPermission(PERMISSIONS.VIEWER) || canEdit || isAdmin;
+            document.getElementById('searchInput').disabled = !canView;
+            document.getElementById('shareBtn').disabled = !canView;
+            
+            // 如果只有查看权限，禁用所有输入框
+            if (currentPerm === PERMISSIONS.VIEWER) {
+                document.querySelectorAll('#tableBody input').forEach(input => {
+                    input.disabled = true;
+                    input.style.backgroundColor = '#f8f9fa';
+                });
+            } else {
+                document.querySelectorAll('#tableBody input').forEach(input => {
+                    input.disabled = false;
+                    input.style.backgroundColor = '';
+                });
+            }
+        }
+
+        function getCurrentWorkbookPermission() {
+            if (!currentWorkbook || !uid) return PERMISSIONS.VIEWER;
+            
+            // 管理员有所有权限
+            if (isAdmin) return PERMISSIONS.OWNER;
+            
+            // 检查工作簿权限
+            const perm = workbookPermissions[currentWorkbook.id];
+            if (perm) return perm;
+            
+            // 默认权限
+            return currentUserRole === ROLES.VIEWER ? PERMISSIONS.VIEWER : PERMISSIONS.EDITOR;
+        }
+
+        function hasPermission(requiredPerm) {
+            const currentPerm = getCurrentWorkbookPermission();
+            
+            const permissionHierarchy = {
+                [PERMISSIONS.OWNER]: 3,
+                [PERMISSIONS.EDITOR]: 2,
+                [PERMISSIONS.VIEWER]: 1
+            };
+            
+            return permissionHierarchy[currentPerm] >= permissionHierarchy[requiredPerm];
+        }
+
+        function getPermissionName(permission) {
+            const names = {
+                [PERMISSIONS.OWNER]: '所有者',
+                [PERMISSIONS.EDITOR]: '编辑者',
+                [PERMISSIONS.VIEWER]: '查看者'
+            };
+            return names[permission] || '未知';
+        }
+
+        // 权限管理模态框
+        async function showPermissionModal() {
+            if (!currentWorkbook) {
+                showStatus('请先选择一个工作簿', 'warning');
+                return;
+            }
+            
+            const modal = document.getElementById('permissionModal');
+            modal.style.display = 'flex';
+            await loadUsersAndPermissions();
+        }
+
+        async function loadUsersAndPermissions() {
+            try {
+                // 加载用户列表
+                const usersRes = await fetch('api.php?action=get_users');
+                const usersData = await usersRes.json();
+                
+                if (usersData.ok) {
+                    const userSelect = document.getElementById('userSelect');
+                    userSelect.innerHTML = '<option value="">选择用户...</option>';
+                    
+                    // 过滤掉当前用户（不能给自己分配权限）
+                    usersData.users.forEach(user => {
+                        if (user.uid != uid) {
+                            const option = document.createElement('option');
+                            option.value = user.uid;
+                            option.textContent = `${user.username} (${user.role})`;
+                            userSelect.appendChild(option);
+                        }
+                    });
+                }
+                
+                // 加载当前工作簿的权限
+                const permRes = await fetch(`api.php?action=get_workbook_permissions&workbook_id=${currentWorkbook.id}`);
+                const permData = await permRes.json();
+                
+                if (permData.ok) {
+                    updatePermissionList(permData.permissions);
+                }
+                
+                // 更新模态框标题和当前权限显示
+                document.getElementById('modalWorkbookName').textContent = currentWorkbook.name;
+                document.getElementById('currentPermissionDisplay').innerHTML = 
+                    `<span class="permission-badge ${getCurrentWorkbookPermission()}">
+                        ${getPermissionName(getCurrentWorkbookPermission())} (${currentUsername})
+                    </span>`;
+                    
+            } catch (e) {
+                console.error('加载用户和权限失败:', e);
+                showStatus('加载用户列表失败', 'error');
+            }
+        }
+
+        function updatePermissionList(permissions) {
+            const permissionList = document.getElementById('permissionList');
+            if (!permissionList) return;
+            
+            if (!permissions || permissions.length === 0) {
+                permissionList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #666;">
+                        <i class="fas fa-users" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                        <p>尚未分配权限给其他用户</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr><th style="padding: 8px; border-bottom: 1px solid #dee2e6;">用户</th><th style="padding: 8px; border-bottom: 1px solid #dee2e6;">权限</th><th style="padding: 8px; border-bottom: 1px solid #dee2e6;">操作</th></tr></thead>';
+            html += '<tbody>';
+            
+            permissions.forEach(perm => {
+                html += `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">
+                            ${perm.username}
+                            ${perm.user_id == uid ? '<span style="margin-left: 5px; font-size: 0.8em; color: #4a6fa5;">(你)</span>' : ''}
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">
+                            <span class="permission-badge ${perm.permission}">
+                                ${getPermissionName(perm.permission)}
+                            </span>
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">
+                            ${perm.user_id != uid && (hasPermission(PERMISSIONS.OWNER) || isAdmin) ? `
+                                <button onclick="removePermission(${perm.user_id})" class="btn btn-danger btn-sm" style="padding: 2px 8px; font-size: 0.8em;">
+                                    <i class="fas fa-trash"></i> 移除
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            permissionList.innerHTML = html;
+        }
+
+        async function addUserPermission() {
+            const userId = document.getElementById('userSelect').value;
+            const permission = document.getElementById('permissionSelect').value;
+            
+            if (!userId) {
+                showStatus('请选择用户', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('api.php?action=add_permission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workbook_id: currentWorkbook.id,
+                        user_id: userId,
+                        permission: permission
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.ok) {
+                    showStatus('权限已添加', 'success');
+                    loadUsersAndPermissions();
+                    // 清空选择
+                    document.getElementById('userSelect').value = '';
+                } else {
+                    showStatus(result.msg, 'error');
+                }
+            } catch (e) {
+                showStatus('添加权限失败: ' + e.message, 'error');
+            }
+        }
+
+        async function removePermission(userId) {
+            if (!confirm('确定要移除该用户的权限吗？')) return;
+            
+            try {
+                const response = await fetch('api.php?action=remove_permission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workbook_id: currentWorkbook.id,
+                        user_id: userId
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.ok) {
+                    showStatus('权限已移除', 'success');
+                    loadUsersAndPermissions();
+                } else {
+                    showStatus(result.msg, 'error');
+                }
+            } catch (e) {
+                showStatus('移除权限失败: ' + e.message, 'error');
+            }
+        }
+
+        function savePermissions() {
+            closeModal('permissionModal');
+            showStatus('权限已保存', 'success');
+        }
+
+        /* ===================== 渲染 ===================== */
+        function renderWorkbookList() {
+            const list = document.getElementById('workbookList');
+            list.innerHTML = '';
+            workbooks.forEach(wb => {
+                const div = document.createElement('div');
+                div.className = `workbook-item ${wb.id === currentWorkbook?.id ? 'active' : ''}`;
+                div.innerHTML = `<i class="fas fa-book"></i><span>${wb.name}</span>`;
+                div.onclick = () => switchWorkbook(wb.id);
+                list.appendChild(div);
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if (!currentWorkbook) return;
+            
+            const canEdit = hasPermission(PERMISSIONS.EDITOR) || isAdmin;
+            
+            const thead = document.querySelector('#dataTable thead');
+            thead.innerHTML = '<tr>' + currentWorkbook.columns.map(c => `<th>${c}</th>`).join('') + 
+                              (canEdit ? '<th>操作</th>' : '') + '</tr>';
+            
+            if (!tableData.length) {
+                tbody.innerHTML = `<tr><td colspan="${currentWorkbook.columns.length + (canEdit ? 1 : 0)}" style="text-align:center;color:#666;padding:40px;">
+                    <i class="fas fa-inbox" style="font-size:48px;margin-bottom:10px;display:block;"></i>
+                    <p>表格为空${canEdit ? '，点击"添加新行"按钮开始添加数据' : ''}</p>
+                </td></tr>`;
+                return;
+            }
+            
+            tableData.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                
+                // 处理颜色标签
+                if (row._rowColor === 'custom' && row._customColor) {
+                    // 自定义颜色
+                    const bgColor = hexToRgba(row._customColor, 0.2);
+                    tr.style.setProperty('--custom-row-bg', bgColor);
+                    tr.classList.add('row-custom');
+                } else if (row._rowColor) {
+                    // 预设颜色
+                    tr.classList.add(`row-${row._rowColor}`);
+                }
+                
+                let rowHTML = currentWorkbook.columns.map((col, i) => {
+                    if (i === 0) {
+                        // 颜色标签列
+                        if (row._rowColor === 'custom' && row._customColor) {
+                            // 自定义颜色标签
+                            const bgColor = hexToRgba(row._customColor, 0.1);
+                            const textColor = getContrastColor(row._customColor);
+                            const noteText = row._customNote || '自定义';
+                            return `<td class="color-tag-cell color-tag-custom" 
+                                     style="background-color: ${bgColor}; color: ${textColor};">
+                                    ${noteText}
+                                   </td>`;
+                        } else if (row._rowColor) {
+                            // 预设颜色标签
+                            const noteText = getColorNote(row._rowColor);
+                            return `<td class="color-tag-cell ${getColorTagClass(row._rowColor)}">
+                                    ${noteText}
+                                   </td>`;
+                        } else {
+                            return `<td class="color-tag-cell"></td>`;
+                        }
+                    } else {
+                        return `<td>${canEdit 
+                            ? `<input type="text" value="${row[col] || ''}" data-index="${idx}" data-field="${col}">`
+                            : `<span style="display: block; padding: 8px 4px;">${row[col] || ''}</span>`}
+                          </td>`;
+                    }
+                }).join('');
+                
+                if (canEdit) {
+                    rowHTML += `<td><button class="delete-btn" data-index="${idx}" title="删除此行">
+                        <i class="fas fa-times"></i></button></td>`;
+                }
+                
+                tr.innerHTML = rowHTML;
+                
+                if (canEdit) {
+                    tr.addEventListener('click', function(e) {
+                        if (e.target.closest('.delete-btn')) return;
+                        document.querySelectorAll('.row-selected').forEach(r => r.classList.remove('row-selected'));
+                        tr.classList.add('row-selected');
+                        selectedRowIndex = idx;
+                        
+                        // 显示当前行的颜色信息
+                        if (row._rowColor === 'custom') {
+                            showStatus(`已选择第 ${idx + 1} 行 - 颜色: ${row._customNote || '自定义'}`, 'info');
+                        } else if (row._rowColor) {
+                            showStatus(`已选择第 ${idx + 1} 行 - 颜色: ${getColorNote(row._rowColor)}`, 'info');
+                        } else {
+                            showStatus(`已选择第 ${idx + 1} 行，请选择颜色标签`, 'info');
+                        }
+                    });
+                }
+                
+                tbody.appendChild(tr);
+            });
+            
+            addEventListeners();
+            updateUIByPermissions();
+        }
+
+        function getColorTagClass(color) {
+            return color ? `color-tag-${color}` : '';
+        }
+
+        function addEventListeners() {
+            document.querySelectorAll('input[data-index][data-field]').forEach(inp => {
+                inp.oninput = e => {
+                    if (inp.disabled) return;
+                    const idx = +inp.dataset.index, field = inp.dataset.field;
+                    tableData[idx][field] = inp.value;
+                    showStatus('数据已更新，请保存', 'warning');
+                };
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.onclick = e => {
+                    const idx = +btn.dataset.index;
+                    tableData.splice(idx, 1);
+                    renderTable();
+                    showStatus('行已删除，请保存', 'warning');
+                };
+            });
+        }
+
+        function switchWorkbook(id) {
+            currentWorkbook = workbooks.find(w => w.id === id);
+            if (currentWorkbook) {
+                tableData = currentWorkbook.data;
+                document.getElementById('currentWorkbookName').textContent = currentWorkbook.name;
+                renderWorkbookList();
+                renderTable();
+                updateUIByPermissions();
+            }
+        }
+
+        function showStatus(msg, type) {
+            const box = document.getElementById('statusMessage');
+            box.textContent = msg;
+            box.className = `status ${type}`;
+            box.style.display = 'block';
+            if (type !== 'error') setTimeout(() => box.style.display = 'none', 3000);
+        }
+
+        /* ===================== 颜色标签 ===================== */
+        function applyRowColorTag(color) {
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            if (selectedRowIndex === -1) return showStatus('请先选择要标记的行', 'warning');
+            tableData[selectedRowIndex]._rowColor = color || '';
+            tableData[selectedRowIndex]._customColor = '';
+            tableData[selectedRowIndex]._customNote = '';
+            renderTable();
+            saveToDB();
+            showStatus(`已应用颜色标签: ${getColorNote(color)}`, 'success');
+            
+            // 清空选择
+            selectedRowIndex = -1;
+            document.querySelectorAll('.row-selected').forEach(r => r.classList.remove('row-selected'));
+        }
+        
+        // 绑定预设颜色按钮
+        document.getElementById('yellowBtn').onclick = () => applyRowColorTag('yellow');
+        document.getElementById('blueBtn').onclick = () => applyRowColorTag('blue');
+        document.getElementById('redBtn').onclick = () => applyRowColorTag('red');
+        document.getElementById('greenBtn').onclick = () => applyRowColorTag('green');
+        document.getElementById('purpleBtn').onclick = () => applyRowColorTag('purple');
+        document.getElementById('orangeBtn').onclick = () => applyRowColorTag('orange');
+        document.getElementById('clearColorBtn').onclick = () => applyRowColorTag('');
+
+        /* ===================== 搜索 ===================== */
+        let searchMatches = [], currentMatchIndex = -1;
+
+        function performSearch() {
+            const searchTerm = searchInput.value.trim();
+            const caseSensitive = caseSensitiveCheckbox.checked;
+            const exactMatch = exactMatchCheckbox.checked;
+            clearSearchHighlights();
+            searchMatches = [];
+            currentMatchIndex = -1;
+            if (searchTerm === '') {
+                searchResults.textContent = '输入关键词开始搜索...';
+                prevMatchBtn.disabled = true;
+                nextMatchBtn.disabled = true;
+                return;
+            }
+            tableData.forEach((row, index) => {
+                let rowMatch = false;
+                Object.values(row).forEach((value, colIndex) => {
+                    if (value) {
+                        let searchValue = value.toString();
+                        let searchTermValue = searchTerm;
+                        if (!caseSensitive) {
+                            searchValue = searchValue.toLowerCase();
+                            searchTermValue = searchTermValue.toLowerCase();
+                        }
+                        let match = false;
+                        if (exactMatch) {
+                            match = searchValue === searchTermValue;
+                        } else {
+                            match = searchValue.includes(searchTermValue);
+                        }
+                        if (match) {
+                            rowMatch = true;
+                            searchMatches.push({
+                                rowIndex: index,
+                                colIndex: colIndex,
+                                value: value
+                            });
+                        }
+                    }
+                });
+                if (rowMatch) {
+                    const tableRows = document.querySelectorAll('#tableBody tr');
+                    if (tableRows[index]) {
+                        tableRows[index].classList.add('search-match');
+                    }
+                }
+            });
+            if (searchMatches.length > 0) {
+                searchResults.innerHTML = `找到 <span class="highlight">${searchMatches.length}</span> 个匹配项`;
+                prevMatchBtn.disabled = false;
+                nextMatchBtn.disabled = false;
+                navigateToMatch(0);
+            } else {
+                searchResults.innerHTML = `未找到 "<span class="highlight">${searchTerm}</span>" 的匹配项`;
+                prevMatchBtn.disabled = true;
+                nextMatchBtn.disabled = true;
+            }
+        }
+
+        function clearSearchHighlights() {
+            const tableRows = document.querySelectorAll('#tableBody tr');
+            tableRows.forEach(row => {
+                row.classList.remove('search-match');
+            });
+        }
+
+        function navigateToMatch(index) {
+            if (searchMatches.length === 0) return;
+            currentMatchIndex = (index + searchMatches.length) % searchMatches.length;
+            const match = searchMatches[currentMatchIndex];
+            const tableRows = document.querySelectorAll('#tableBody tr');
+            if (tableRows[match.rowIndex]) {
+                tableRows[match.rowIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                tableRows.forEach(row => row.classList.remove('current-match'));
+                tableRows[match.rowIndex].classList.add('current-match');
+                searchResults.innerHTML = `匹配项 <span class="highlight">${currentMatchIndex + 1}</span> / <span class="highlight">${searchMatches.length}</span>`;
+            }
+        }
+
+        document.getElementById('prevMatchBtn').addEventListener('click', () => navigateToMatch(currentMatchIndex - 1));
+        document.getElementById('nextMatchBtn').addEventListener('click', () => navigateToMatch(currentMatchIndex + 1));
+        document.getElementById('clearSearchBtn').addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchHighlights();
+            searchMatches = [];
+            currentMatchIndex = -1;
+            searchResults.textContent = '输入关键词开始搜索...';
+            prevMatchBtn.disabled = true;
+            nextMatchBtn.disabled = true;
+        });
+        document.getElementById('searchInput').addEventListener('input', performSearch);
+        document.getElementById('caseSensitiveCheckbox').addEventListener('change', performSearch);
+        document.getElementById('exactMatchCheckbox').addEventListener('change', performSearch);
+
+        /* ===================== 数据库读写 ===================== */
+        async function loadFromDB() {
+            try {
+                const rows = await apiCall('load');
+                const colorRow = rows.find(r => r.id === 'CONFIG');
+                if (colorRow) colorLabels = JSON.parse(colorRow.data);
+                workbooks = rows.filter(r => r.id !== 'CONFIG').map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    columns: JSON.parse(r.columns),
+                    data: JSON.parse(r.data)
+                }));
+                if (!workbooks.length) {
+                    workbooks = initialWorkbooks;
+                    await saveToDB();
+                }
+                renderWorkbookList();
+                if (workbooks.length) switchWorkbook(workbooks[0].id);
+                showStatus('已从本地数据库加载', 'success');
+                toggleControls(true);
+            } catch (e) {
+                console.error(e);
+                showStatus('加载失败：' + e.message, 'error');
+            }
+        }
+
+        async function saveToDB() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            
+            currentWorkbook.data = tableData;
+            try {
+                await apiCall('save', {
+                    id: 'CONFIG',
+                    name: 'COLOR_LABELS',
+                    columns: '[]',
+                    data: JSON.stringify(colorLabels)
+                });
+                for (const wb of workbooks) {
+                    await apiCall('save', {
+                        id: wb.id,
+                        name: wb.name,
+                        columns: JSON.stringify(wb.columns),
+                        data: JSON.stringify(wb.data)
+                    });
+                }
+                showStatus('已保存到数据库', 'success');
+            } catch (e) {
+                console.error(e);
+                showStatus('保存失败：' + e.message, 'error');
+            }
+        }
+
+        /* ===================== 事件绑定 ===================== */
+        document.getElementById('addWorkbookBtn').addEventListener('click', () => {
+            document.getElementById('addWorkbookModal').style.display = 'flex';
+        });
+        document.getElementById('saveBtn').addEventListener('click', saveToDB);
+        document.getElementById('refreshBtn').addEventListener('click', loadFromDB);
+        document.getElementById('deleteWorkbookBtn').addEventListener('click', async () => {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.OWNER) && !isAdmin) {
+                return showStatus('您没有删除权限', 'error');
+            }
+            
+            if (!confirm(`确定要删除工作簿 "${currentWorkbook.name}" 吗？`)) return;
+            try {
+                await apiCall('delete', { id: currentWorkbook.id });
+                workbooks = workbooks.filter(w => w.id !== currentWorkbook.id);
+                if (workbooks.length) switchWorkbook(workbooks[0].id);
+                else {
+                    currentWorkbook = null;
+                    tableData = [];
+                    document.getElementById('currentWorkbookName').textContent = '请选择工作簿';
+                    renderTable();
+                }
+                renderWorkbookList();
+                showStatus('工作簿已删除', 'success');
+            } catch (e) {
+                showStatus('删除失败：' + e.message, 'error');
+            }
+        });
+        document.getElementById('shareBtn').addEventListener('click', shareWorkbooks);
+        document.getElementById('permissionBtn').addEventListener('click', showPermissionModal);
+        
+        // 绑定功能按钮
+        document.getElementById('renameBtn').addEventListener('click', () => openModal('renameModal'));
+        document.getElementById('exportBtn').addEventListener('click', exportExcel);
+        document.getElementById('importBtn').addEventListener('click', () => openModal('importModal'));
+
+        function closeAddModal() {
+            document.getElementById('addWorkbookModal').style.display = 'none';
+        }
+
+        async function createWorkbook() {
+            const name = document.getElementById('workbookName').value.trim();
+            const cols = document.getElementById('workbookColumns').value.split('\n').map(c => c.trim()).filter(c => c);
+            if (!name || !cols.length) return showStatus('名称和列不能为空', 'error');
+            const newWb = { id: 'workbook-' + Date.now(), name, columns: cols, data: [] };
+            workbooks.push(newWb);
+            switchWorkbook(newWb.id);
+            
+            // 自动添加创建者为所有者
+            try {
+                await fetch('api.php?action=add_permission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workbook_id: newWb.id,
+                        user_id: uid,
+                        permission: 'owner'
+                    })
+                });
+            } catch (e) {
+                console.error('设置所有者权限失败:', e);
+            }
+            
+            saveToDB();
+            closeAddModal();
+            document.getElementById('workbookName').value = '';
+            document.getElementById('workbookColumns').value = '颜色标签\n姓名\n电话\n快递单号\n寄付日期';
+        }
+
+        /* ===================== 新增功能函数 ===================== */
+        
+        // 模态框管理
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            
+            if (modalId === 'renameModal' && currentWorkbook) {
+                document.getElementById('renameWorkbookName').value = currentWorkbook.name;
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 重命名工作簿
+        async function renameWorkbook() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.OWNER) && !isAdmin) {
+                return showStatus('您没有重命名权限', 'error');
+            }
+            
+            const newName = document.getElementById('renameWorkbookName').value.trim();
+            if (!newName) return showStatus('名称不能为空', 'error');
+            
+            try {
+                const res = await fetch('api.php?action=rename', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: currentWorkbook.id,
+                        name: newName
+                    })
+                });
+                const j = await res.json();
+                if (j.ok) {
+                    currentWorkbook.name = newName;
+                    document.getElementById('currentWorkbookName').textContent = newName;
+                    renderWorkbookList();
+                    closeModal('renameModal');
+                    showStatus('工作簿重命名成功', 'success');
+                } else {
+                    showStatus(j.msg, 'error');
+                }
+            } catch (e) {
+                showStatus('重命名失败：' + e.message, 'error');
+            }
+        }
+
+        // 导出Excel
+        function exportExcel() {
+            if (!currentWorkbook) return;
+            
+            // 检查权限
+            if (!hasPermission(PERMISSIONS.VIEWER) && !isAdmin) {
+                return showStatus('您没有导出权限', 'error');
+            }
+            
+            const url = `api.php?action=export_excel&workbook_id=${encodeURIComponent(currentWorkbook.id)}`;
+            window.open(url, '_blank');
+            
+            showStatus('正在导出Excel文件...', 'info');
+        }
+
+        // 导入CSV
+        async function importCSVData() {
+            if (!currentWorkbook) return;
+            if (!hasPermission(PERMISSIONS.EDITOR) && !isAdmin) {
+                return showStatus('您没有编辑权限', 'error');
+            }
+            
+            const fileInput = document.getElementById('excelFileInput');
+            if (!fileInput.files.length) {
+                return showStatus('请选择要导入的文件', 'error');
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    const csvContent = e.target.result;
+                    const lines = csvContent.split('\n');
+                    
+                    if (lines.length === 0) {
+                        showStatus('文件为空', 'error');
+                        return;
+                    }
+                    
+                    // 解析CSV数据
+                    const importedData = [];
+                    const headers = lines[0].split(',').map(h => h.trim());
+                    
+                    // 验证列匹配
+                    const workbookColumns = currentWorkbook.columns.filter(col => col !== '颜色标签');
+                    const missingColumns = workbookColumns.filter(col => !headers.includes(col));
+                    
+                    if (missingColumns.length > 0) {
+                        return showStatus(`CSV文件缺少以下列: ${missingColumns.join(', ')}`, 'error');
+                    }
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim() === '') continue;
+                        
+                        // 处理带逗号的CSV值
+                        const values = parseCSVLine(lines[i]);
+                        const row = {};
+                        
+                        // 将CSV列映射到工作簿列
+                        headers.forEach((header, index) => {
+                            if (workbookColumns.includes(header)) {
+                                row[header] = values[index] || '';
+                            }
+                        });
+                        row['_rowColor'] = '';
+                        importedData.push(row);
+                    }
+                    
+                    // 合并数据
+                    tableData = tableData.concat(importedData);
+                    renderTable();
+                    await saveToDB();
+                    
+                    closeModal('importModal');
+                    fileInput.value = ''; // 清空文件输入
+                    showStatus(`成功导入 ${importedData.length} 行数据`, 'success');
+                    
+                } catch (e) {
+                    console.error('导入错误:', e);
+                    showStatus('导入失败：' + e.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+        
+        // 辅助函数：解析CSV行（处理带逗号的值）
+        function parseCSVLine(line) {
+            const result = [];
+            let inQuotes = false;
+            let currentField = '';
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1] || '';
+                
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        // 转义的双引号
+                        currentField += '"';
+                        i++; // 跳过下一个双引号
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(currentField);
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+            }
+            
+            result.push(currentField);
+            return result;
+        }
+
+        // 双击工作簿名称快速重命名
+        function initDoubleClickRename() {
+            const workbookTitle = document.getElementById('currentWorkbookName');
+            if (workbookTitle) {
+                workbookTitle.addEventListener('dblclick', function() {
+                    if (!currentWorkbook) return;
+                    if (!hasPermission(PERMISSIONS.OWNER) && !isAdmin) {
+                        return showStatus('您没有重命名权限', 'error');
+                    }
+                    
+                    const currentName = this.textContent;
+                    this.style.display = 'none';
+                    
+                    const renameInput = document.createElement('input');
+                    renameInput.type = 'text';
+                    renameInput.value = currentName;
+                    renameInput.style.cssText = 'font-size: 1.5rem; color: #4a6fa5; font-weight: 600; border: 1px solid #4a6fa5; padding: 5px; border-radius: 4px; width: 300px; background: white;';
+                    
+                    const renameWorkbookQuick = async (newName) => {
+                        if (!currentWorkbook || !newName || newName === currentWorkbook.name) return;
+                        
+                        try {
+                            await apiCall('rename', {
+                                id: currentWorkbook.id,
+                                name: newName
+                            });
+                            currentWorkbook.name = newName;
+                            document.getElementById('currentWorkbookName').textContent = newName;
+                            renderWorkbookList();
+                            showStatus('工作簿重命名成功', 'success');
+                        } catch (e) {
+                            showStatus('重命名失败：' + e.message, 'error');
+                        }
+                    };
+                    
+                    renameInput.onblur = function() {
+                        renameWorkbookQuick(this.value);
+                        this.remove();
+                        workbookTitle.style.display = 'inline';
+                    };
+                    
+                    renameInput.onkeypress = function(e) {
+                        if (e.key === 'Enter') {
+                            renameWorkbookQuick(this.value);
+                            this.remove();
+                            workbookTitle.style.display = 'inline';
+                        }
+                    };
+                    
+                    this.parentNode.insertBefore(renameInput, this.nextSibling);
+                    renameInput.focus();
+                    renameInput.select();
+                });
+            }
+        }
+
+        /* ===================== 初始示例 ===================== */
+        const initialWorkbooks = [
+            {
+                id: 'workbook-1',
+                name: '客人寄付快递登记',
+                columns: ['颜色标签', '姓名', '电话', '快递单号', '寄付日期', '物品类型', '状态'],
+                data: [
+                    { '颜色标签': '', '姓名': '张三', '电话': '13800138000', '快递单号': 'SF123456789', '寄付日期': '2023-06-01', '物品类型': '文件', '状态': '已寄出', '_rowColor': 'yellow' },
+                    { '颜色标签': '', '姓名': '李四', '电话': '13900139000', '快递单号': 'YT987654321', '寄付日期': '2023-06-02', '物品类型': '包裹', '状态': '待揽收', '_rowColor': 'blue' }
+                ]
+            },
+            {
+                id: 'workbook-2',
+                name: '客人退货快递登记',
+                columns: ['颜色标签', '姓名', '电话', '订单号', '退货单号', '退货原因', '处理状态'],
+                data: [
+                    { '颜色标签': '', '姓名': '赵六', '电话': '13600136000', '订单号': 'ORD001', '退货单号': 'TH123456789', '退货原因': '尺寸不合适', '处理状态': '待审核', '_rowColor': 'purple' }
+                ]
+            }
+        ];
+
+        /* ===================== 初始化 ===================== */
+        window.onload = () => {
+            const hash = new URLSearchParams(location.search).get('view');
+            if (hash) {   // 查看模式（无需登录）
+                currentShareHash = hash;
+                document.body.classList.add('view-mode');
+            } else {      // 正常模式：先登录
+                document.getElementById('loginOnly').style.display = 'flex';
+                // 初始化双击重命名
+                initDoubleClickRename();
+            }
+            
+            // 初始化折叠面板
+            const togglePanel = document.getElementById('togglePanel');
+            const panelIcon = document.getElementById('panelIcon');
+            const colorPanel = document.getElementById('sidebarColorPanel');
+            
+            if (togglePanel && panelIcon && colorPanel) {
+                togglePanel.addEventListener('click', () => {
+                    colorPanel.classList.toggle('collapsed');
+                    panelIcon.classList.toggle('fa-chevron-up');
+                    panelIcon.classList.toggle('fa-chevron-down');
+                });
+            }
+        };
+    </script>
+</body>
+</html>
